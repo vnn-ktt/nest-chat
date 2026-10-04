@@ -1,6 +1,6 @@
-import { Module } from '@nestjs/common'
+import { Module } from '@nestjs/common';
 
-import { ChatGateway } from './chat/chat.gateway.js'
+import { ChatGateway } from './chat/chat.gateway.js';
 
 @Module({
   providers: [ChatGateway],

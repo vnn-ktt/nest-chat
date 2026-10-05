@@ -1,7 +1,7 @@
-import { Args, ID, Query, Resolver } from '@nestjs/graphql'
+import { Args, ID, Query, Resolver } from '@nestjs/graphql';
 
-import { ChatService } from './chat.service.js'
-import { ChatMessage } from './entities/chat-message.entity.js'
+import { ChatService } from './chat.service.js';
+import { ChatMessage } from './entities/chat-message.entity.js';
 
 @Resolver(() => ChatMessage)
 export class ChatResolver {
@@ -9,9 +9,11 @@ export class ChatResolver {
 
   @Query(() => [ChatMessage])
   messages(
-    @Args('roomId', { type: () => ID })
-    roomId: string,
-  ) {
-    return this.chatService.getRoomMessages(roomId)
+    @Args('documentId', {
+      type: () => ID,
+    })
+    documentId: string,
+  ): Promise<ChatMessage[]> {
+    return this.chatService.getMessages(documentId);
   }
 }

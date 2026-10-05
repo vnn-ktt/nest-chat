@@ -6,58 +6,107 @@ import {
   SubscribeMessage,
   WebSocketGateway,
   WebSocketServer,
-} from '@nestjs/websockets'
-import { Server, Socket } from 'socket.io'
+  WsException,
+} from '@nestjs/websockets';
+import { Server, Socket } from 'socket.io';
 
-import { SendMessageDto } from './dto/send-message.dto.js'
-import { ChatService } from './chat.service.js'
+import { ChatService } from './chat.service.js';
+import { EditMessageDto } from './dto/edit-message.dto.js';
+import { JoinDocumentDto } from './dto/join-document.dto.js';
+import { SendMessageDto } from './dto/send-message.dto.js';
 
 @WebSocketGateway({
   cors: {
     origin: '*',
   },
 })
-export class ChatGateway
-  implements OnGatewayConnection, OnGatewayDisconnect
-{
+export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
-  server: Server
+  server!: Server;
 
   constructor(private readonly chatService: ChatService) {}
 
   handleConnection(client: Socket) {
-    console.log(`Connected: ${client.id}`)
+    const userId = client.handshake.auth?.userId;
+
+    if (!userId) {
+      client.disconnect(true);
+      return;
+    }
+
+    client.data.userId = userId;
+
+    console.log(`Connected: ${client.id}, user: ${userId}`);
   }
 
   handleDisconnect(client: Socket) {
-    console.log(`Disconnected: ${client.id}`)
+    client.disconnect(true);
+    console.log(`Disconnected: ${client.id}`);
   }
 
-  @SubscribeMessage('room:join')
-  async joinRoom(
-    @ConnectedSocket() client: Socket,
-    @MessageBody() roomId: string,
+  @SubscribeMessage('document:join')
+  async joinDocument(
+    @ConnectedSocket()
+    client: Socket,
+
+    @MessageBody()
+    dto: JoinDocumentDto,
   ) {
-    await client.join(roomId)
+    const room = this.getDocumentRoom(dto.documentId);
+
+    // TODO:
+    // проверить через Service Inconsistencies,
+    // что user имеет read-access к документу
+
+    await client.join(room);
+
+    return {
+      documentId: dto.documentId,
+    };
   }
 
   @SubscribeMessage('message:send')
   async sendMessage(
-    @ConnectedSocket() client: Socket,
-    @MessageBody() dto: SendMessageDto,
+    @ConnectedSocket()
+    client: Socket,
+
+    @MessageBody()
+    dto: SendMessageDto,
   ) {
-    // TODO: JWT Authentication
-    const userId = client.handshake.auth.userId as string
+    const room = this.getDocumentRoom(dto.documentId);
+
+    if (!client.rooms.has(room)) {
+      throw new WsException('Join document chat first');
+    }
 
     const message = await this.chatService.createMessage(
-      userId,
+      client.data.userId,
       dto,
-    )
+    );
 
-    this.server
-      .to(dto.roomId)
-      .emit('message:new', message)
+    this.server.to(room).emit('message:new', message);
 
-    return message
+    return message;
+  }
+
+  @SubscribeMessage('message:edit')
+  async editMessage(
+    @ConnectedSocket()
+    client: Socket,
+
+    @MessageBody()
+    dto: EditMessageDto,
+  ) {
+    const message = await this.chatService.editMessage(client.data.userId, dto);
+
+    const room = this.getDocumentRoom(message.documentId);
+
+    this.server.to(room).emit('message:updated', message);
+
+    return message;
+  }
+
+  private getDocumentRoom(documentId: string): string {
+    return `document:${documentId}`;
   }
 }

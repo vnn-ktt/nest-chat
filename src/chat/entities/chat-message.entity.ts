@@ -1,36 +1,76 @@
-import { Field, ID, ObjectType } from '@nestjs/graphql'
-import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm'
+import { Field, ID, ObjectType } from '@nestjs/graphql';
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  Index,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
+} from 'typeorm';
 
-import { ChatRoom } from './chat-room.entity.js'
-
-@ ObjectType()
+@ObjectType()
 @Entity('chat_messages')
+@Index(['documentId', 'createdAt'])
 export class ChatMessage {
   @Field(() => ID)
   @PrimaryGeneratedColumn('uuid')
-  id: string
-  
-  @Field()
-  @Column()
-  text: string
+  id!: string;
 
   @Field(() => ID)
-  @Column('uuid')
-  userId: string
-
-  @Field(() => ID)
-  @Column('uuid')
-  roomId: string
-
-  @Field(() => ChatRoom)
-  @ManyToOne(() => ChatRoom, (room) => room.messages, {
-    onDelete: 'CASCADE',
+  @Column({
+    type: 'uuid',
+    name: 'document_id',
   })
-  @JoinColumn({ name: 'roomId' })
-  room: ChatRoom
+  documentId!: string;
+
+  @Field(() => ID)
+  @Column({
+    type: 'uuid',
+    name: 'author_id',
+  })
+  authorId!: string;
+
+  @Field(() => ID, {
+    nullable: true,
+  })
+  @Column({
+    type: 'uuid',
+    name: 'recipient_id',
+    nullable: true,
+  })
+  recipientId!: string | null;
 
   @Field()
-  @CreateDateColumn()
-  createdAt: Date
-  
+  @Column({
+    type: 'text',
+  })
+  body!: string;
+
+  @Field()
+  @Column({
+    type: 'boolean',
+    default: false,
+  })
+  important!: boolean;
+
+  @Field()
+  @Column({
+    type: 'boolean',
+    default: false,
+  })
+  edited!: boolean;
+
+  @Field()
+  @CreateDateColumn({
+    type: 'timestamptz',
+    name: 'created_at',
+  })
+  createdAt!: Date;
+
+  @Field()
+  @UpdateDateColumn({
+    type: 'timestamptz',
+    name: 'updated_at',
+  })
+  updatedAt!: Date;
 }

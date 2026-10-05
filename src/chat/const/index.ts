@@ -1,0 +1,1 @@
+export const MAX_MESSAGE_BODY_LENGTH = 5000

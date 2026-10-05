@@ -1,14 +1,26 @@
-import { Field, ID, InputType } from '@nestjs/graphql'
-import { IsNotEmpty, IsUUID, MaxLength } from 'class-validator'
+import { Field, ID, InputType } from '@nestjs/graphql';
+import { IsBoolean, IsNotEmpty, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
+
+import { MAX_MESSAGE_BODY_LENGTH } from '../const/index.js';
 
 @InputType()
 export class SendMessageDto {
   @Field(() => ID)
   @IsUUID()
-  roomId: string
+  documentId!: string;
+
+  @Field(() => ID)
+  @IsOptional()
+  @IsUUID()
+  recipientId?: string;
+
+  @Field()
+  @IsOptional()
+  @IsBoolean()
+  important?: boolean;
 
   @Field()
   @IsNotEmpty()
-  @MaxLength(2000)
-  text: string
+  @MaxLength(MAX_MESSAGE_BODY_LENGTH)
+  body!: string;
 }

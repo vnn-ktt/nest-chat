@@ -4,21 +4,21 @@ import {
   IsOptional,
   IsString,
   IsUUID,
-  MaxLength
-} from 'class-validator'
+  MaxLength,
+} from 'class-validator';
 
 import { MAX_MESSAGE_BODY_LENGTH } from '../const/index.js';
 
 export class EditMessageDto {
   @IsUUID()
-  messageId!: string
+  messageId!: string;
 
   @IsString()
   @IsNotEmpty()
   @MaxLength(MAX_MESSAGE_BODY_LENGTH)
-  body!: string
+  body!: string;
 
   @IsOptional()
   @IsBoolean()
-  important?: boolean
+  important?: boolean;
 }

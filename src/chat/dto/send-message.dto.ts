@@ -1,5 +1,12 @@
 import { Field, ID, InputType } from '@nestjs/graphql';
-import { IsBoolean, IsNotEmpty, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
+import {
+  IsBoolean,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsUUID,
+  MaxLength,
+} from 'class-validator';
 
 import { MAX_MESSAGE_BODY_LENGTH } from '../const/index.js';
 
@@ -21,6 +28,7 @@ export class SendMessageDto {
 
   @Field()
   @IsNotEmpty()
+  @IsString()
   @MaxLength(MAX_MESSAGE_BODY_LENGTH)
   body!: string;
 }

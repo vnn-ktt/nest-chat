@@ -2,50 +2,465 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <title>Chat</title>
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  />
+
+  <title>Chat WebSocket Test</title>
+
+  <style>
+      body {
+          max-width: 900px;
+          margin: 40px auto;
+          padding: 0 20px;
+          font-family: Arial, sans-serif;
+      }
+
+      section {
+          margin-bottom: 24px;
+          padding: 16px;
+          border: 1px solid #ddd;
+          border-radius: 8px;
+      }
+
+      input,
+      textarea,
+      button {
+          margin: 4px;
+          padding: 8px;
+      }
+
+      input,
+      textarea {
+          width: 500px;
+      }
+
+      textarea {
+          height: 80px;
+      }
+
+      .message {
+          margin: 8px 0;
+          padding: 10px;
+          border: 1px solid #ddd;
+          border-radius: 6px;
+      }
+
+      .important {
+          border-width: 2px;
+      }
+
+      .meta {
+          margin-bottom: 6px;
+          font-size: 12px;
+          opacity: 0.6;
+      }
+
+      #status {
+          font-weight: bold;
+      }
+  </style>
 </head>
 
 <body>
-  <h1>WebSocket Chat</h1>
+<h1>Chat WebSocket Test</h1>
 
-  <input id="message" placeholder="Сообщение" />
-  <button id="send">Отправить</button>
+<section>
+  <h2>1. Connection</h2>
 
-  <ul id="messages"></ul>
+  <div>
+    Status:
+    <span id="status">Disconnected</span>
+  </div>
 
-  <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
+  <div>
+    <label>
+      User ID:
+      <input id="userId" />
+    </label>
+  </div>
 
-  <script>
-    const socket = io('http://localhost:3000')
+  <button id="connect">
+    Connect
+  </button>
 
-    const input = document.querySelector('#message')
-    const button = document.querySelector('#send')
-    const messages = document.querySelector('#messages')
+  <button id="disconnect">
+    Disconnect
+  </button>
+</section>
 
-    socket.on('connect', () => {
-      console.log('Connected:', socket.id)
-    })
+<section>
+  <h2>2. Document</h2>
 
-    socket.on('disconnect', () => {
-      console.log('Disconnected')
-    })
+  <div>
+    <label>
+      Document ID:
+      <input id="documentId" />
+    </label>
+  </div>
 
-    socket.on('message', (message) => {
-      console.log('Received:', message)
+  <button id="joinDocument">
+    Join document chat
+  </button>
+</section>
 
-      const li = document.createElement('li')
+<section>
+  <h2>3. Send message</h2>
 
-      li.textContent =
-        `${message.senderId}: ${message.text}`
+  <div>
+    <label>
+      Recipient ID:
+      <input
+        id="recipientId"
+        placeholder="Можно оставить пустым"
+      />
+    </label>
+  </div>
 
-      messages.appendChild(li)
-    })
+  <div>
+    <label>
+      Message:
+      <textarea id="body"></textarea>
+    </label>
+  </div>
 
-    button.addEventListener('click', () => {
-      socket.emit('message', input.value)
+  <div>
+    <label>
+      <input
+        id="important"
+        type="checkbox"
+      />
 
-      input.value = ''
-    })
-  </script>
+      Important
+    </label>
+  </div>
+
+  <button id="send">
+    Send
+  </button>
+</section>
+
+<section>
+  <h2>Messages</h2>
+
+  <div id="messages"></div>
+</section>
+
+<script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
+
+<script>
+  const userIdInput =
+    document.querySelector('#userId')
+
+  const documentIdInput =
+    document.querySelector('#documentId')
+
+  const recipientIdInput =
+    document.querySelector('#recipientId')
+
+  const bodyInput =
+    document.querySelector('#body')
+
+  const importantInput =
+    document.querySelector('#important')
+
+  const status =
+    document.querySelector('#status')
+
+  const messages =
+    document.querySelector('#messages')
+
+  const connectButton =
+    document.querySelector('#connect')
+
+  const disconnectButton =
+    document.querySelector('#disconnect')
+
+  const joinDocumentButton =
+    document.querySelector('#joinDocument')
+
+  const sendButton =
+    document.querySelector('#send')
+
+  userIdInput.value = crypto.randomUUID()
+
+  documentIdInput.value = crypto.randomUUID()
+
+  let socket = null
+
+  connectButton.addEventListener(
+    'click',
+    () => {
+      if (socket?.connected) {
+        return
+      }
+
+      const userId =
+        userIdInput.value.trim()
+
+      socket = io(
+        'http://localhost:3000',
+        {
+          auth: {
+            userId,
+          },
+        },
+      )
+
+      registerSocketListeners()
+    },
+  )
+
+  disconnectButton.addEventListener(
+    'click',
+    () => {
+      socket?.disconnect()
+    },
+  )
+
+  joinDocumentButton.addEventListener(
+    'click',
+    () => {
+      if (!socket?.connected) {
+        alert('Connect first')
+        return
+      }
+
+      const documentId =
+        documentIdInput.value.trim()
+
+      socket.emit(
+        'document:join',
+        {
+          documentId,
+        },
+        (response) => {
+          console.log(
+            'document:join ACK',
+            response,
+          )
+        },
+      )
+    },
+  )
+
+  sendButton.addEventListener(
+    'click',
+    () => {
+      if (!socket?.connected) {
+        alert('Connect first')
+        return
+      }
+
+      const documentId =
+        documentIdInput.value.trim()
+
+      const recipientId =
+        recipientIdInput.value.trim()
+
+      const body =
+        bodyInput.value.trim()
+
+      if (!body) {
+        return
+      }
+
+      const payload = {
+        documentId,
+        body,
+        important:
+        importantInput.checked,
+      }
+
+      if (recipientId) {
+        payload.recipientId =
+          recipientId
+      }
+
+      socket.emit(
+        'message:send',
+        payload,
+        (response) => {
+          console.log(
+            'message:send ACK',
+            response,
+          )
+        },
+      )
+
+      bodyInput.value = ''
+    },
+  )
+
+  function registerSocketListeners() {
+    socket.on(
+      'connect',
+      () => {
+        status.textContent =
+          `Connected: ${socket.id}`
+
+        console.log(
+          'Connected',
+          socket.id,
+        )
+      },
+    )
+
+    socket.on(
+      'disconnect',
+      (reason) => {
+        status.textContent =
+          'Disconnected'
+
+        console.log(
+          'Disconnected',
+          reason,
+        )
+      },
+    )
+
+    socket.on(
+      'message:new',
+      (message) => {
+        console.log(
+          'message:new',
+          message,
+        )
+
+        renderMessage(message)
+      },
+    )
+
+    socket.on(
+      'message:updated',
+      (message) => {
+        console.log(
+          'message:updated',
+          message,
+        )
+
+        updateMessage(message)
+      },
+    )
+
+    socket.on(
+      'exception',
+      (error) => {
+        console.error(
+          'WebSocket exception:',
+          error,
+        )
+      },
+    )
+
+    socket.on(
+      'connect_error',
+      (error) => {
+        console.error(
+          'Connection error:',
+          error,
+        )
+      },
+    )
+  }
+
+  function renderMessage(message) {
+    const element =
+      document.createElement('div')
+
+    element.className =
+      'message'
+
+    if (message.important) {
+      element.classList.add(
+        'important',
+      )
+    }
+
+    element.dataset.id =
+      message.id
+
+    element.innerHTML = `
+        <div class="meta">
+          id: ${message.id}
+          <br>
+          author: ${message.authorId}
+          <br>
+          recipient:
+          ${message.recipientId ?? 'all'}
+        </div>
+
+        <div class="body">
+          ${escapeHtml(message.body)}
+        </div>
+
+        <div>
+          important:
+          ${message.important}
+
+          |
+
+          edited:
+          ${message.edited}
+        </div>
+
+        <button
+          onclick="editMessage('${message.id}')"
+        >
+          Edit
+        </button>
+      `
+
+    messages.appendChild(element)
+  }
+
+  function updateMessage(message) {
+    const old =
+      messages.querySelector(
+        `[data-id="${message.id}"]`,
+      )
+
+    if (old) {
+      old.remove()
+    }
+
+    renderMessage(message)
+  }
+
+  window.editMessage =
+    function (messageId) {
+      const body = prompt(
+        'New message text:',
+      )
+
+      if (!body) {
+        return
+      }
+
+      socket.emit(
+        'message:edit',
+        {
+          messageId,
+          body,
+        },
+        (response) => {
+          console.log(
+            'message:edit ACK',
+            response,
+          )
+        },
+      )
+    }
+
+  function escapeHtml(value) {
+    const element =
+      document.createElement('div')
+
+    element.textContent = value
+
+    return element.innerHTML
+  }
+</script>
 </body>
 </html>
